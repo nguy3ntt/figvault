@@ -16,11 +16,18 @@ export function CollectionPanel({ minifigs }: CollectionPanelProps) {
         <button className="ghost-button">Export CSV</button>
       </div>
 
-      <div className="collection-grid">
-        {minifigs.map((minifig) => (
-          <MinifigCard key={minifig.id} minifig={minifig} />
-        ))}
-      </div>
+      {minifigs.length === 0 ? (
+        <div className="empty-state">
+          <h3>No minifigures stored yet</h3>
+          <p>Add your first minifigure manually or confirm an image-recognition result.</p>
+        </div>
+      ) : (
+        <div className="collection-grid">
+          {minifigs.map((minifig) => (
+            <MinifigCard key={minifig.id} minifig={minifig} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

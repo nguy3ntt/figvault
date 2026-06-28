@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { Header } from "./components/Header";
 import { StatCard } from "./components/StatCard";
@@ -7,23 +7,128 @@ import { ManualAddForm } from "./components/ManualAddForm";
 import { CollectionPanel } from "./components/CollectionPanel";
 import { ValueChart } from "./components/ValueChart";
 import { mockMinifigs } from "./data/mockMinifigs";
+import type { Minifig, MinifigFormInput } from "./types";
+
+const STORAGE_KEY = "figvault-minifigs";
+
+function createId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function createImageLabel(name: string) {
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) {
+    return "MF";
+  }
+
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return words
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+}
+
+function loadStoredMinifigs() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) {
+      return mockMinifigs;
+    }
+
+    const parsed = JSON.parse(saved) as Minifig[];
+
+    if (!Array.isArray(parsed)) {
+      return mockMinifigs;
+    }
+
+    return parsed;
+  } catch {
+    return mockMinifigs;
+  }
+}
 
 function App() {
   const [activeView, setActiveView] = useState("Dashboard");
+  const [minifigs, setMinifigs] = useState<Minifig[]>(loadStoredMinifigs);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(minifigs));
+  }, [minifigs]);
+
+  function addMinifig(input: MinifigFormInput) {
+    setMinifigs((currentMinifigs) => {
+      const existingIndex = currentMinifigs.findIndex(
+        (item) =>
+          item.figCode.toLowerCase() === input.figCode.toLowerCase() &&
+          item.condition === input.condition
+      );
+
+      if (existingIndex !== -1) {
+        return currentMinifigs.map((item, index) => {
+          if (index !== existingIndex) {
+            return item;
+          }
+
+          return {
+            ...item,
+            quantity: item.quantity + input.quantity,
+            estimatedValue: input.estimatedValue,
+            purchasePrice: input.purchasePrice ?? item.purchasePrice,
+            lastUpdated: new Date().toISOString().slice(0, 10),
+          };
+        });
+      }
+
+      const newMinifig: Minifig = {
+        id: createId(),
+        figCode: input.figCode,
+        name: input.name,
+        theme: input.theme,
+        year: input.year,
+        condition: input.condition,
+        quantity: input.quantity,
+        estimatedValue: input.estimatedValue,
+        purchasePrice: input.purchasePrice,
+        imageLabel: createImageLabel(input.name),
+        valueChangePercent: 0,
+        lastUpdated: new Date().toISOString().slice(0, 10),
+      };
+
+      return [newMinifig, ...currentMinifigs];
+    });
+
+    setActiveView("Collection");
+  }
 
   const stats = useMemo(() => {
-    const totalFigures = mockMinifigs.reduce((sum, item) => sum + item.quantity, 0);
+    const totalFigures = minifigs.reduce((sum, item) => sum + item.quantity, 0);
 
-    const totalValue = mockMinifigs.reduce(
+    const totalValue = minifigs.reduce(
       (sum, item) => sum + item.quantity * item.estimatedValue,
       0
     );
 
-    const uniqueThemes = new Set(mockMinifigs.map((item) => item.theme)).size;
+    const uniqueThemes = new Set(minifigs.map((item) => item.theme)).size;
 
-    const topFigure = [...mockMinifigs].sort(
-      (a, b) => b.estimatedValue * b.quantity - a.estimatedValue * a.quantity
-    )[0];
+    const topFigure =
+      minifigs.length > 0
+        ? [...minifigs].sort(
+            (a, b) => b.estimatedValue * b.quantity - a.estimatedValue * a.quantity
+          )[0]
+        : null;
 
     return {
       totalFigures,
@@ -31,7 +136,7 @@ function App() {
       uniqueThemes,
       topFigure,
     };
-  }, []);
+  }, [minifigs]);
 
   return (
     <main className="app-shell">
@@ -72,25 +177,29 @@ function App() {
             />
             <StatCard
               label="Top Figure"
-              value={stats.topFigure.name}
-              helper={`$${stats.topFigure.estimatedValue.toFixed(2)} unit value`}
+              value={stats.topFigure?.name ?? "None yet"}
+              helper={
+                stats.topFigure
+                  ? `$${stats.topFigure.estimatedValue.toFixed(2)} unit value`
+                  : "Add your first minifigure"
+              }
             />
           </section>
 
           <div className="dashboard-grid">
             <ValueChart />
-            <UploadPanel />
+            <UploadPanel onConfirmMatch={addMinifig} />
           </div>
 
-          <CollectionPanel minifigs={mockMinifigs} />
+          <CollectionPanel minifigs={minifigs} />
         </>
       )}
 
-      {activeView === "Collection" && <CollectionPanel minifigs={mockMinifigs} />}
+      {activeView === "Collection" && <CollectionPanel minifigs={minifigs} />}
 
-      {activeView === "Identify" && <UploadPanel />}
+      {activeView === "Identify" && <UploadPanel onConfirmMatch={addMinifig} />}
 
-      {activeView === "Add Manual" && <ManualAddForm />}
+      {activeView === "Add Manual" && <ManualAddForm onAdd={addMinifig} />}
     </main>
   );
 }

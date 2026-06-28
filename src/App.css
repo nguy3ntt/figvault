@@ -490,4 +490,52 @@ button {
   .fig-avatar {
     width: 100%;
   }
+
+  .uploaded-preview {
+  width: min(100%, 280px);
+  height: 190px;
+  margin-bottom: 18px;
+  border-radius: 22px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.form-error {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: #ffaaa5;
+  background: rgba(255, 93, 86, 0.12);
+  font-weight: 700;
+}
+
+.success-message {
+  margin: 14px 0 0 !important;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: #9ff7c2 !important;
+  background: rgba(55, 211, 120, 0.12);
+  font-weight: 700;
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  padding: 32px;
+  border-radius: 24px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.empty-state h3 {
+  margin: 0 0 8px;
+}
+
+.empty-state p {
+  max-width: 420px;
+  margin: 0;
+  color: #b8c0d9;
+  line-height: 1.7;
+}
 }
