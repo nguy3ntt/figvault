@@ -10,7 +10,7 @@ export function Header({ activeView, onChangeView }: HeaderProps) {
     <header className="app-header">
       <div>
         <p className="eyebrow">LEGO Minifigure Collection</p>
-        <h1>MinifigVault</h1>
+        <h1>figVault</h1>
       </div>
 
       <nav className="nav-tabs">
