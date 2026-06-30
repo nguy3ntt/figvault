@@ -2,9 +2,15 @@ import type { Minifig } from "../types";
 
 type MinifigCardProps = {
   minifig: Minifig;
+  onDelete: (id: string) => void;
+  onQuantityChange: (id: string, nextQuantity: number) => void;
 };
 
-export function MinifigCard({ minifig }: MinifigCardProps) {
+export function MinifigCard({
+  minifig,
+  onDelete,
+  onQuantityChange,
+}: MinifigCardProps) {
   const totalValue = minifig.estimatedValue * minifig.quantity;
   const isPositive = minifig.valueChangePercent >= 0;
 
@@ -41,6 +47,29 @@ export function MinifigCard({ minifig }: MinifigCardProps) {
             <span>Total</span>
             <strong>${totalValue.toFixed(2)}</strong>
           </div>
+        </div>
+
+        <div className="fig-actions">
+          <div className="quantity-control">
+            <button
+              className="small-button"
+              onClick={() => onQuantityChange(minifig.id, minifig.quantity - 1)}
+              disabled={minifig.quantity <= 1}
+            >
+              −
+            </button>
+            <span>{minifig.quantity}</span>
+            <button
+              className="small-button"
+              onClick={() => onQuantityChange(minifig.id, minifig.quantity + 1)}
+            >
+              +
+            </button>
+          </div>
+
+          <button className="danger-button" onClick={() => onDelete(minifig.id)}>
+            Remove
+          </button>
         </div>
       </div>
     </article>

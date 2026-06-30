@@ -60,6 +60,20 @@ function loadStoredMinifigs() {
   }
 }
 
+function escapeCsvField(value: string | number | undefined) {
+  if (value === undefined) {
+    return "";
+  }
+
+  const stringValue = String(value);
+
+  if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
+    return `"${stringValue.replaceAll('"', '""')}"`;
+  }
+
+  return stringValue;
+}
+
 function App() {
   const [activeView, setActiveView] = useState("Dashboard");
   const [minifigs, setMinifigs] = useState<Minifig[]>(loadStoredMinifigs);
@@ -113,6 +127,95 @@ function App() {
     setActiveView("Collection");
   }
 
+  function deleteMinifig(id: string) {
+    const shouldDelete = window.confirm("Remove this minifigure from your collection?");
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setMinifigs((currentMinifigs) => currentMinifigs.filter((item) => item.id !== id));
+  }
+
+  function updateMinifigQuantity(id: string, nextQuantity: number) {
+    if (nextQuantity < 1) {
+      return;
+    }
+
+    setMinifigs((currentMinifigs) =>
+      currentMinifigs.map((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        return {
+          ...item,
+          quantity: nextQuantity,
+          lastUpdated: new Date().toISOString().slice(0, 10),
+        };
+      })
+    );
+  }
+
+  function resetDemoData() {
+    const shouldReset = window.confirm(
+      "Reset your local collection back to the demo minifigure data?"
+    );
+
+    if (!shouldReset) {
+      return;
+    }
+
+    setMinifigs(mockMinifigs);
+  }
+
+  function exportCollectionCsv() {
+    const headers = [
+      "Fig Code",
+      "Name",
+      "Theme",
+      "Year",
+      "Condition",
+      "Quantity",
+      "Estimated Unit Value",
+      "Estimated Total Value",
+      "Purchase Price",
+      "Value Change Percent",
+      "Last Updated",
+    ];
+
+    const rows = minifigs.map((item) => [
+      item.figCode,
+      item.name,
+      item.theme,
+      item.year,
+      item.condition,
+      item.quantity,
+      item.estimatedValue.toFixed(2),
+      (item.estimatedValue * item.quantity).toFixed(2),
+      item.purchasePrice?.toFixed(2),
+      item.valueChangePercent,
+      item.lastUpdated,
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map((field) => escapeCsvField(field)).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `figvault-collection-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }
+
   const stats = useMemo(() => {
     const totalFigures = minifigs.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -137,6 +240,16 @@ function App() {
       topFigure,
     };
   }, [minifigs]);
+
+  const collectionPanel = (
+    <CollectionPanel
+      minifigs={minifigs}
+      onDelete={deleteMinifig}
+      onQuantityChange={updateMinifigQuantity}
+      onExportCsv={exportCollectionCsv}
+      onResetDemoData={resetDemoData}
+    />
+  );
 
   return (
     <main className="app-shell">
@@ -191,11 +304,11 @@ function App() {
             <UploadPanel onConfirmMatch={addMinifig} />
           </div>
 
-          <CollectionPanel minifigs={minifigs} />
+          {collectionPanel}
         </>
       )}
 
-      {activeView === "Collection" && <CollectionPanel minifigs={minifigs} />}
+      {activeView === "Collection" && collectionPanel}
 
       {activeView === "Identify" && <UploadPanel onConfirmMatch={addMinifig} />}
 
