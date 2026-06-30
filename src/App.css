@@ -658,3 +658,15 @@ button:disabled {
     width: 100%;
   }
 }
+
+.manual-form option,
+.collection-toolbar option {
+  color: #111827;
+  background: #ffffff;
+}
+
+.manual-form option:checked,
+.collection-toolbar option:checked {
+  color: #111827;
+  background: #ffc72c;
+}
