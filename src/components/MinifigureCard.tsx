@@ -2,12 +2,14 @@ import type { Minifig } from "../types";
 
 type MinifigCardProps = {
   minifig: Minifig;
+  onEdit: (minifig: Minifig) => void;
   onDelete: (id: string) => void;
   onQuantityChange: (id: string, nextQuantity: number) => void;
 };
 
 export function MinifigCard({
   minifig,
+  onEdit,
   onDelete,
   onQuantityChange,
 }: MinifigCardProps) {
@@ -67,9 +69,14 @@ export function MinifigCard({
             </button>
           </div>
 
-          <button className="danger-button" onClick={() => onDelete(minifig.id)}>
-            Remove
-          </button>
+          <div className="card-action-buttons">
+            <button className="edit-button" onClick={() => onEdit(minifig)}>
+              Edit
+            </button>
+            <button className="danger-button" onClick={() => onDelete(minifig.id)}>
+              Remove
+            </button>
+          </div>
         </div>
       </div>
     </article>

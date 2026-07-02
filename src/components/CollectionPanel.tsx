@@ -6,6 +6,7 @@ type SortOption = "recent" | "value-high" | "value-low" | "name" | "quantity";
 
 type CollectionPanelProps = {
   minifigs: Minifig[];
+  onEdit: (minifig: Minifig) => void;
   onDelete: (id: string) => void;
   onQuantityChange: (id: string, nextQuantity: number) => void;
   onExportCsv: () => void;
@@ -23,6 +24,7 @@ const conditionOptions: Array<"All" | MinifigCondition> = [
 
 export function CollectionPanel({
   minifigs,
+  onEdit,
   onDelete,
   onQuantityChange,
   onExportCsv,
@@ -145,6 +147,7 @@ export function CollectionPanel({
             <MinifigCard
               key={minifig.id}
               minifig={minifig}
+              onEdit={onEdit}
               onDelete={onDelete}
               onQuantityChange={onQuantityChange}
             />

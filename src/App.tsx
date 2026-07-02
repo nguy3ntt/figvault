@@ -7,9 +7,10 @@ import { ManualAddForm } from "./components/ManualAddForm";
 import { CollectionPanel } from "./components/CollectionPanel";
 import { ValueChart } from "./components/ValueChart";
 import { mockMinifigs } from "./data/mockMinifigs";
-import type { Minifig, MinifigFormInput } from "./types";
+import type { Minifig, MinifigFormInput, ValueSnapshot } from "./types";
 
 const STORAGE_KEY = "figvault-minifigs";
+const VALUE_HISTORY_KEY = "figvault-value-history";
 
 function createId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -40,6 +41,31 @@ function createImageLabel(name: string) {
     .toUpperCase();
 }
 
+function calculateCollectionSummary(minifigs: Minifig[]) {
+  const totalFigures = minifigs.reduce((sum, item) => sum + item.quantity, 0);
+
+  const totalValue = minifigs.reduce(
+    (sum, item) => sum + item.quantity * item.estimatedValue,
+    0
+  );
+
+  return {
+    totalFigures,
+    totalValue,
+  };
+}
+
+function createValueSnapshot(minifigs: Minifig[]): ValueSnapshot {
+  const summary = calculateCollectionSummary(minifigs);
+
+  return {
+    id: createId(),
+    createdAt: new Date().toISOString(),
+    totalValue: Number(summary.totalValue.toFixed(2)),
+    totalFigures: summary.totalFigures,
+  };
+}
+
 function loadStoredMinifigs() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -60,6 +86,26 @@ function loadStoredMinifigs() {
   }
 }
 
+function loadStoredValueHistory(initialMinifigs: Minifig[]) {
+  try {
+    const saved = localStorage.getItem(VALUE_HISTORY_KEY);
+
+    if (!saved) {
+      return [createValueSnapshot(initialMinifigs)];
+    }
+
+    const parsed = JSON.parse(saved) as ValueSnapshot[];
+
+    if (!Array.isArray(parsed)) {
+      return [createValueSnapshot(initialMinifigs)];
+    }
+
+    return parsed;
+  } catch {
+    return [createValueSnapshot(initialMinifigs)];
+  }
+}
+
 function escapeCsvField(value: string | number | undefined) {
   if (value === undefined) {
     return "";
@@ -75,11 +121,38 @@ function escapeCsvField(value: string | number | undefined) {
 }
 
 function App() {
+  const initialMinifigs = useMemo(() => loadStoredMinifigs(), []);
+
   const [activeView, setActiveView] = useState("Dashboard");
-  const [minifigs, setMinifigs] = useState<Minifig[]>(loadStoredMinifigs);
+  const [minifigs, setMinifigs] = useState<Minifig[]>(initialMinifigs);
+  const [editingMinifig, setEditingMinifig] = useState<Minifig | null>(null);
+  const [valueHistory, setValueHistory] = useState<ValueSnapshot[]>(() =>
+    loadStoredValueHistory(initialMinifigs)
+  );
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(minifigs));
+  }, [minifigs]);
+
+  useEffect(() => {
+    localStorage.setItem(VALUE_HISTORY_KEY, JSON.stringify(valueHistory));
+  }, [valueHistory]);
+
+  useEffect(() => {
+    setValueHistory((currentHistory) => {
+      const nextSnapshot = createValueSnapshot(minifigs);
+      const lastSnapshot = currentHistory.at(-1);
+
+      if (
+        lastSnapshot &&
+        lastSnapshot.totalValue === nextSnapshot.totalValue &&
+        lastSnapshot.totalFigures === nextSnapshot.totalFigures
+      ) {
+        return currentHistory;
+      }
+
+      return [...currentHistory, nextSnapshot].slice(-30);
+    });
   }, [minifigs]);
 
   function addMinifig(input: MinifigFormInput) {
@@ -127,6 +200,47 @@ function App() {
     setActiveView("Collection");
   }
 
+  function startEditMinifig(minifig: Minifig) {
+    setEditingMinifig(minifig);
+    setActiveView("Edit");
+  }
+
+  function cancelEditMinifig() {
+    setEditingMinifig(null);
+    setActiveView("Collection");
+  }
+
+  function updateMinifig(input: MinifigFormInput) {
+    if (!editingMinifig) {
+      return;
+    }
+
+    setMinifigs((currentMinifigs) =>
+      currentMinifigs.map((item) => {
+        if (item.id !== editingMinifig.id) {
+          return item;
+        }
+
+        return {
+          ...item,
+          figCode: input.figCode,
+          name: input.name,
+          theme: input.theme,
+          year: input.year,
+          condition: input.condition,
+          quantity: input.quantity,
+          estimatedValue: input.estimatedValue,
+          purchasePrice: input.purchasePrice,
+          imageLabel: createImageLabel(input.name),
+          lastUpdated: new Date().toISOString().slice(0, 10),
+        };
+      })
+    );
+
+    setEditingMinifig(null);
+    setActiveView("Collection");
+  }
+
   function deleteMinifig(id: string) {
     const shouldDelete = window.confirm("Remove this minifigure from your collection?");
 
@@ -135,6 +249,11 @@ function App() {
     }
 
     setMinifigs((currentMinifigs) => currentMinifigs.filter((item) => item.id !== id));
+
+    if (editingMinifig?.id === id) {
+      setEditingMinifig(null);
+      setActiveView("Collection");
+    }
   }
 
   function updateMinifigQuantity(id: string, nextQuantity: number) {
@@ -167,6 +286,9 @@ function App() {
     }
 
     setMinifigs(mockMinifigs);
+    setEditingMinifig(null);
+    setValueHistory([createValueSnapshot(mockMinifigs)]);
+    setActiveView("Collection");
   }
 
   function exportCollectionCsv() {
@@ -217,12 +339,7 @@ function App() {
   }
 
   const stats = useMemo(() => {
-    const totalFigures = minifigs.reduce((sum, item) => sum + item.quantity, 0);
-
-    const totalValue = minifigs.reduce(
-      (sum, item) => sum + item.quantity * item.estimatedValue,
-      0
-    );
+    const summary = calculateCollectionSummary(minifigs);
 
     const uniqueThemes = new Set(minifigs.map((item) => item.theme)).size;
 
@@ -234,8 +351,7 @@ function App() {
         : null;
 
     return {
-      totalFigures,
-      totalValue,
+      ...summary,
       uniqueThemes,
       topFigure,
     };
@@ -244,6 +360,7 @@ function App() {
   const collectionPanel = (
     <CollectionPanel
       minifigs={minifigs}
+      onEdit={startEditMinifig}
       onDelete={deleteMinifig}
       onQuantityChange={updateMinifigQuantity}
       onExportCsv={exportCollectionCsv}
@@ -300,7 +417,7 @@ function App() {
           </section>
 
           <div className="dashboard-grid">
-            <ValueChart />
+            <ValueChart snapshots={valueHistory} currentTotal={stats.totalValue} />
             <UploadPanel onConfirmMatch={addMinifig} />
           </div>
 
@@ -312,7 +429,18 @@ function App() {
 
       {activeView === "Identify" && <UploadPanel onConfirmMatch={addMinifig} />}
 
-      {activeView === "Add Manual" && <ManualAddForm onAdd={addMinifig} />}
+      {activeView === "Add Manual" && (
+        <ManualAddForm mode="add" onSubmit={addMinifig} />
+      )}
+
+      {activeView === "Edit" && editingMinifig && (
+        <ManualAddForm
+          mode="edit"
+          initialValue={editingMinifig}
+          onSubmit={updateMinifig}
+          onCancel={cancelEditMinifig}
+        />
+      )}
     </main>
   );
 }

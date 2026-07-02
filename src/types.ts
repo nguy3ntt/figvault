@@ -25,3 +25,10 @@ export type MinifigFormInput = {
   estimatedValue: number;
   purchasePrice?: number;
 };
+
+export type ValueSnapshot = {
+  id: string;
+  createdAt: string;
+  totalValue: number;
+  totalFigures: number;
+};

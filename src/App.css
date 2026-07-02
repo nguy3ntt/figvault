@@ -670,3 +670,34 @@ button:disabled {
   color: #111827;
   background: #ffc72c;
 }
+
+.card-action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.edit-button {
+  border: 1px solid rgba(255, 199, 44, 0.4);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #ffc72c;
+  background: rgba(255, 199, 44, 0.1);
+  font-weight: 800;
+}
+
+.edit-button:hover {
+  border-color: rgba(255, 199, 44, 0.8);
+  background: rgba(255, 199, 44, 0.16);
+}
+
+@media (max-width: 760px) {
+  .card-action-buttons {
+    justify-content: stretch;
+  }
+
+  .edit-button {
+    width: 100%;
+  }
+}

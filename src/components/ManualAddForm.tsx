@@ -1,8 +1,13 @@
-import { useState } from "react";
-import type { MinifigCondition, MinifigFormInput } from "../types";
+import { useEffect, useState } from "react";
+import type { Minifig, MinifigCondition, MinifigFormInput } from "../types";
+
+type FormMode = "add" | "edit";
 
 type ManualAddFormProps = {
-  onAdd: (input: MinifigFormInput) => void;
+  mode?: FormMode;
+  initialValue?: Minifig;
+  onSubmit: (input: MinifigFormInput) => void;
+  onCancel?: () => void;
 };
 
 type FormState = {
@@ -16,7 +21,7 @@ type FormState = {
   purchasePrice: string;
 };
 
-const initialForm: FormState = {
+const emptyForm: FormState = {
   figCode: "",
   name: "",
   theme: "",
@@ -27,9 +32,37 @@ const initialForm: FormState = {
   purchasePrice: "",
 };
 
-export function ManualAddForm({ onAdd }: ManualAddFormProps) {
-  const [form, setForm] = useState<FormState>(initialForm);
+function createFormState(initialValue?: Minifig): FormState {
+  if (!initialValue) {
+    return emptyForm;
+  }
+
+  return {
+    figCode: initialValue.figCode,
+    name: initialValue.name,
+    theme: initialValue.theme,
+    year: String(initialValue.year),
+    condition: initialValue.condition,
+    quantity: String(initialValue.quantity),
+    estimatedValue: String(initialValue.estimatedValue),
+    purchasePrice:
+      initialValue.purchasePrice === undefined ? "" : String(initialValue.purchasePrice),
+  };
+}
+
+export function ManualAddForm({
+  mode = "add",
+  initialValue,
+  onSubmit,
+  onCancel,
+}: ManualAddFormProps) {
+  const [form, setForm] = useState<FormState>(() => createFormState(initialValue));
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setForm(createFormState(initialValue));
+    setError("");
+  }, [initialValue]);
 
   function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => ({
@@ -72,7 +105,7 @@ export function ManualAddForm({ onAdd }: ManualAddFormProps) {
       return;
     }
 
-    onAdd({
+    onSubmit({
       figCode: form.figCode.trim(),
       name: form.name.trim(),
       theme: form.theme.trim(),
@@ -83,7 +116,10 @@ export function ManualAddForm({ onAdd }: ManualAddFormProps) {
       purchasePrice,
     });
 
-    setForm(initialForm);
+    if (mode === "add") {
+      setForm(emptyForm);
+    }
+
     setError("");
   }
 
@@ -91,9 +127,15 @@ export function ManualAddForm({ onAdd }: ManualAddFormProps) {
     <section className="panel">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Manual input</p>
-          <h2>Add Minifigure</h2>
+          <p className="eyebrow">{mode === "edit" ? "Update item" : "Manual input"}</p>
+          <h2>{mode === "edit" ? "Edit Minifigure" : "Add Minifigure"}</h2>
         </div>
+
+        {mode === "edit" && onCancel && (
+          <button className="ghost-button" onClick={onCancel} type="button">
+            Cancel
+          </button>
+        )}
       </div>
 
       <form className="manual-form" onSubmit={handleSubmit}>
@@ -192,7 +234,7 @@ export function ManualAddForm({ onAdd }: ManualAddFormProps) {
         {error && <p className="form-error">{error}</p>}
 
         <button className="primary-button" type="submit">
-          Add to Collection
+          {mode === "edit" ? "Save Changes" : "Add to Collection"}
         </button>
       </form>
     </section>
